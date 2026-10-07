@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Town Blocks — 3D Grid with Auto Merge</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="auth-overlay">
+  <div id="auth-box">
+    <h2 id="auth-title">Log in to City Blocks</h2>
+
+    <!-- Configures the Google login behavior -->
+  <div id="g_id_onload"
+     data-client_id="729825790466-k692d4cu4v0aeve1hfcg17o84fbn54sp.apps.googleusercontent.com"
+     data-context="signin"
+     data-ux_mode="popup"
+     data-callback="handleGoogleLogin"
+     data-auto_prompt="false">
+  </div>
+
+    <!-- Renders the actual visible button -->
+  <div class="g_id_signin"
+     data-type="standard"
+     data-shape="rectangular"
+     data-theme="outline"
+     data-text="signin_with"
+     data-size="large"
+     data-logo_alignment="left">
+  </div>
+
+    <input id="auth-username" type="text" placeholder="Username" autocomplete="username" />
+    <input id="auth-email" type="email" placeholder="Email" autocomplete="email" style="display:none;" />
+    <input id="auth-password" type="password" placeholder="Password" autocomplete="current-password" />
+    <div id="auth-error"></div>
+    <button id="auth-submit">Log in</button>
+    <div id="auth-toggle">Need an account? Sign up</div>
+    <button id="auth-guest" class="secondary">Play as guest (no save)</button>
+  </div>
+</div>
+
+<h1>Town Blocks — 5×5</h1>
+<div id="account-bar"></div>
+<div id="score-display">Score: <span id="score-value">0</span></div>
+
+<div id="panel-toggles">
+  <button id="toggle-leaderboard-btn">Top Scores</button>
+  <button id="toggle-stats-btn">My Stats</button>
+</div>
+
+<div id="game-container">
+  <div id="scene">
+    <div class="shadow-ellipse"></div>
+    <div id="world">
+      <div id="board"></div>
+    </div>
+  </div>
+
+  <div id="tray-panel">
+    <div class="panel-title">Current Tile</div>
+    <div class="slot current">
+      <div class="slot-label">Ready</div>
+      <div id="current-preview" class="preview-image"></div>
+    </div>
+
+    <div class="panel-title" style="margin-top: 10px;">Up Next</div>
+    <div class="queue-list">
+      <div class="slot next">
+        <div id="next-preview-1" class="preview-image"></div>
+      </div>
+      <div class="slot next">
+        <div id="next-preview-2" class="preview-image"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="leaderboard-panel">
+    <div class="panel-title">Top Scores</div>
+    <ol id="leaderboard-list"><li>Loading…</li></ol>
+  </div>
+
+  <div id="stats-panel">
+    <div class="panel-title">My Stats</div>
+    <div id="stats-content">Loading…</div>
+  </div>
+</div>
+
+<div id="status">Place 3 matching buildings next to each other to merge!</div>
+<div id="game-over-actions">
+  <button id="reset-btn">Restart</button>
+</div>
+
+<script type="module" src="main.js"></script>
+<script src="https://accounts.google.com/gsi/client" defer></script>  <!-- to load google's tools-->
+</body>
+</html>

@@ -1,0 +1,475 @@
+  :root {
+    --board-size: 520px;
+    --thickness: 70px;
+    --cell: 92px;
+    --gap: 6px;
+    --pad: 12px;
+
+    --top-face: #e9c187;
+    --cell-empty: #d9ae78cc;
+    --cell-empty-border: #c8996655;
+
+    --panel-bg: rgba(23, 47, 52, 0.75);
+    --panel-border: rgba(255, 255, 255, 0.15);
+    --text-light: #e6f3f5;
+    --accent: #e9c187;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 50% 20%, #4a9298 0%, #254c53 55%, #172f34 100%);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text-light);
+    gap: 15px;
+    overflow: hidden;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  #score-display {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-light);
+    letter-spacing: 0.03em;
+  }
+
+  #score-value {
+    color: var(--accent);
+    display: inline-block;
+    transition: transform 0.15s ease;
+  }
+
+  #score-value.bump {
+    transform: scale(1.3);
+  }
+
+  #game-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    width: 100%;
+    max-width: 1100px;
+  }
+
+  #scene {
+    position: relative;
+    width: 520px;
+    height: 460px;
+    perspective: 2000px;
+    perspective-origin: 33% 80%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Applied to #scene rather than each .cell — #scene sits outside the
+     preserve-3d hierarchy (#world/#board/.cell), so filtering here grays
+     out the whole already-rendered 3D scene as one flat image. Filtering
+     a .cell directly would force THAT element's 3D context to flatten
+     first (filter forces 3D flattening, same category of issue as the
+     transform-style bug earlier), which is what made buildings render
+     flat at game over. */
+  #scene.locked {
+    filter: grayscale(0.5);
+  }
+
+  .shadow-ellipse {
+    position: absolute;
+    bottom: 30px;
+    width: 320px;
+    height: 80px;
+    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.35) 0%, rgba(20,40,50,0) 70%);
+    filter: blur(6px);
+  }
+
+  #world {
+    position: relative;
+    width: var(--board-size);
+    height: var(--board-size);
+    transform-style: preserve-3d;
+    transform: rotateX(52deg) rotateZ(45deg);
+  }
+
+  #board {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--board-size);
+    height: var(--board-size);
+    background: var(--top-face);
+    border-radius: 6px;
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.2);
+    transform: translateZ(calc(var(--thickness) / 2));
+    transform-style: preserve-3d;
+    display: grid;
+    grid-template-columns: repeat(5, var(--cell));
+    grid-template-rows: repeat(5, var(--cell));
+    gap: var(--gap);
+    padding: var(--pad);
+  }
+
+  .cell {
+    position: relative;
+    background: var(--cell-empty);
+    border: 1px solid var(--cell-empty-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .cell:hover { background: #eccfa0aa; }
+  .cell:active { transform: scale(0.94); }
+
+  /* Applied when the board is full and the queued piece has nowhere
+     to go — visually communicates the lock instead of failing silently.
+     Grayscale itself moved to #scene.locked (see above) since filtering
+     here would flatten this cell's 3D building sprite. */
+  .cell.locked {
+    cursor: not-allowed;
+  }
+
+  .building-sprite {
+    position: absolute;
+    /* top:50%/left:50% is the cell's true geometric center — the point
+       that a rotation carries to the visual center of the diamond tile
+       (centroids map to centroids under rotation; edge midpoints don't,
+       which is exactly why the flex bottom-align version drifted into
+       a corner instead). */
+    top: 50%;
+    left: 50%;
+    width: calc(var(--cell) * 0.92);
+    height: calc(var(--cell) * 1.35);
+    pointer-events: none;
+    transform-origin: bottom center;
+    /* translate(-50%, -100%) shifts the box so its own bottom-CENTER
+       (its "feet") lands exactly on that top:50%/left:50% point, instead
+       of the box's top-left corner sitting there. rotateZ/rotateX then
+       counter-rotate the board's isometric tilt so the sprite reads as
+       an upright, camera-facing billboard, pivoting around that same
+       feet point (transform-origin: bottom center) so it doesn't move.
+       translateZ was 10px originally — after the counter-rotation this
+       axis points straight at the camera, so a large value visibly
+       lifted the sprite toward the viewer instead of just nudging it
+       in front of the tile to avoid z-fighting. 2px is enough. */
+    transform: translate(-50%, -100%) rotateZ(-45deg) rotateX(-52deg) translateZ(2px);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom center;
+    /* Was 0px 8px 6px — that offset+blur reads as a shadow cast below a
+       hovering object. A tight, low-offset shadow hugs the base instead,
+       like the building's own footprint shadow rather than a drop shadow. */
+    filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.4));
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+
+  /* Fallback shown when a tier has no sprite mapped yet (e.g. tier 7
+     before real art exists for it) so it's visibly a placeholder
+     rather than a blank/broken image. */
+  .building-sprite.placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(233, 193, 135, 0.85);
+    border: 2px dashed rgba(23, 47, 52, 0.6);
+    border-radius: 8px;
+    color: #172f34;
+    font-weight: 700;
+    font-size: 1.4rem;
+  }
+
+  #tray-panel {
+    width: 180px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 20px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    backdrop-filter: blur(8px);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .panel-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #a8d5e5;
+    margin-bottom: -5px;
+  }
+
+  .slot {
+    border: 2px dashed rgba(233, 193, 135, 0.4);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.2s ease;
+  }
+
+  .slot.current {
+    width: 110px;
+    height: 110px;
+    border: 2px solid var(--accent);
+    background: rgba(233, 193, 135, 0.1);
+    box-shadow: 0 0 12px rgba(233, 193, 135, 0.25);
+  }
+
+  .slot.next {
+    width: 70px;
+    height: 70px;
+  }
+
+  .slot-label {
+    position: absolute;
+    top: 4px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.7;
+  }
+
+  .preview-image {
+    width: 80%;
+    height: 80%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));
+  }
+
+  .queue-list {
+    display: flex;
+    gap: 10px;
+  }
+
+  #status {
+    font-size: 0.85rem;
+    color: #a8d5e5;
+    height: 20px;
+  }
+
+  #status.game-over {
+    color: #f0a05c;
+    font-weight: 600;
+  }
+
+  #reset-btn {
+    display: inline-block;
+    margin-top: -8px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  #game-over-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .city-blocks-logout {
+  background-color: #d9534f; /* Muted red */
+  color: #ffffff;
+  font-family: inherit; /* Matches your game's font */
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 10px 20px;
+  border: 2px solid #2b2b2b;
+  border-radius: 4px;
+  cursor: pointer;
+  
+  /* Creates the 3D block depth */
+  box-shadow: 0px 4px 0px #b52b27, 
+              0px 4px 4px rgba(0, 0, 0, 0.3);
+              
+  transition: all 0.1s ease-in-out;
+}
+
+/* Pushes the button down when clicked */
+.city-blocks-logout:active {
+  transform: translateY(4px);
+  box-shadow: 0px 0px 0px #b52b27, 
+              0px 0px 0px rgba(0, 0, 0, 0.3);
+}
+
+  /* --- Auth overlay --- */
+  #auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 20, 24, 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  #auth-overlay.hidden { display: none; }
+
+  #auth-box {
+    width: 300px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+  }
+
+  #auth-box h2 {
+    margin: 0 0 4px 0;
+    font-size: 1.1rem;
+    color: var(--accent);
+    text-align: center;
+  }
+
+  #auth-box input {
+    padding: 9px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
+    background: rgba(0,0,0,0.25);
+    color: var(--text-light);
+    font-size: 0.9rem;
+  }
+
+  #auth-box button {
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent);
+    color: #172f34;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  #auth-box button.secondary {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text-light);
+    font-weight: 500;
+  }
+
+  #auth-error {
+    color: #f0a05c;
+    font-size: 0.8rem;
+    min-height: 1em;
+    text-align: center;
+  }
+
+  #auth-toggle {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #a8d5e5;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  /* --- Account bar (shown once logged in / playing as guest) --- */
+  #account-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.8rem;
+    color: #a8d5e5;
+  }
+
+  #account-bar button {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    color: #a8d5e5;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  #toggle-leaderboard-btn, #toggle-stats-btn {
+    position: fixed;
+    bottom: 20px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
+    background: rgba(23, 47, 52, 0.9);
+    color: var(--text-light);
+    font-size: 0.8rem;
+    cursor: pointer;
+    z-index: 50;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+
+  #toggle-leaderboard-btn { right: 20px; }
+  #toggle-stats-btn { left: 20px; }
+
+  #toggle-leaderboard-btn.active, #toggle-stats-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  #leaderboard-panel, #stats-panel {
+    position: fixed;
+    bottom: 68px;
+    width: 200px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 16px 15px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 50;
+  }
+
+  #leaderboard-panel { right: 20px; }
+  #stats-panel { left: 20px; }
+
+  #leaderboard-panel.open, #stats-panel.open {
+    display: flex;
+  }
+
+  #leaderboard-panel ol {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.8rem;
+  }
+
+  #leaderboard-panel li {
+    margin-bottom: 4px;
+  }
+
+  #stats-panel div {
+    font-size: 0.8rem;
+    line-height: 1.7;
+  }
